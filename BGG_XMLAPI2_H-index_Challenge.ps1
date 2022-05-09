@@ -1,3 +1,0 @@
-﻿$collectionUri = 'https://boardgamegeek.com/xmlapi2/collection?username=psson73&subtype=boardgame&excludesubtype=boardgameexpansion&excludesubtype=boardgameaccessory&own=1'
-[xml]$xmlCollection = Invoke-WebRequest -Uri $collectionUri
-$xmlCollection.items.item | Select-Object -Property @{ Name = 'gamename' ; Expression = { $_.name.InnerXML } },@{ Name = 'numplays' ; Expression = {  [int]$_.numplays } } | Where-Object { ([int]$_.numplays -lt 40) -and ( [int]$_.numplays -gt 9 ) } | Sort-Object -Property numplays -Descending | ForEach-Object { $message = "$($_.gamename): $($_.numplays)" ; Write-Host $message}
