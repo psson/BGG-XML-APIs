@@ -135,6 +135,64 @@ function Get-BGGHIndexList {
 
 }
 
+function Get-BGGCategoriesForGame {
+    [cmdletbinding()]
+    param (
+        [string][parameter(Mandatory)]$GameID
+    )
+
+    $categories = @{}
+    
+    $thingUri = "https://boardgamegeek.com/xmlapi2/thing?id=$GameID"
+    [xml]$xmlThing = Invoke-WebRequest -Uri $thingUri
+
+    $categoryLinks = $xmlThing | Select-Xml -XPath "//*[@type='boardgamecategory']"
+
+    foreach ( $category in $categoryLinks.Node.value ) {
+        try {
+            Write-Verbose $category
+            $categories.Add($category,'category')
+        } catch [ArgumentException] {
+            # Dublett
+        } catch {
+            Write-Error "Unexpected Error"
+        }
+    }
+
+    return $categories
+
+}
+
+function Get-BGGCategoriesForGames {
+    [cmdletbinding()]
+    param(
+        [string][Parameter(Mandatory,ValueFromPipeline)]$GameID
+    )
+
+    begin {
+        $catDict = @{}
+    }
+
+    process {
+        Write-Verbose "Processing ID $GameID"
+        $gameCats = Get-BGGCategoriesForGame -GameID $GameID
+        foreach ( $key in $gameCats.Keys ) {
+            if ( $catDict.ContainsKey($key) ) {
+                $catDict[$key] = $catDict[$key] + 1
+            } else {
+                $catDict.Add($key,1)
+            }
+        }
+    }
+
+    end {
+        return $catDict
+    }
+
+}
+
 Export-ModuleMember Get-BGGChallengePlaysForEntry
 Export-ModuleMember Get-BGGGameName
 Export-ModuleMember Get-BGGHIndexList
+Export-ModuleMember Get-BGGCategoriesForGame
+Export-ModuleMember Get-BGGCategoriesForGames
