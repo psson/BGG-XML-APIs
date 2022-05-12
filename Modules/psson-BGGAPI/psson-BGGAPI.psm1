@@ -163,7 +163,7 @@ function Get-BGGCategoriesForGame {
 
 }
 
-function Get-BGGCategoriesForGames {
+function Get-BGGNumCategoriesForGames {
     [cmdletbinding()]
     param(
         [string][Parameter(Mandatory,ValueFromPipeline)]$GameID
@@ -195,4 +195,4 @@ Export-ModuleMember Get-BGGChallengePlaysForEntry
 Export-ModuleMember Get-BGGGameName
 Export-ModuleMember Get-BGGHIndexList
 Export-ModuleMember Get-BGGCategoriesForGame
-Export-ModuleMember Get-BGGCategoriesForGames
+Export-ModuleMember Get-BGGNumCategoriesForGames
