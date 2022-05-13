@@ -54,8 +54,6 @@ function Get-BGGChallengePlaysForGame {
             [string]$reqPlayer
     )
 
-    #$gameName = Get-BGGGameName -gameID $gameID
-
     $playsUri = "https://boardgamegeek.com/xmlapi2/plays?username=$bggUser&id=$gameID&mindate=$year-01-01&maxdate=$year-12-31"
     [xml]$xmlPlays = Invoke-WebRequest -Uri $playsUri
     $numPlays = 0
@@ -63,7 +61,6 @@ function Get-BGGChallengePlaysForGame {
     $row = "$paddedGameNumber. "
     $xmlPlays | Select-Xml -XPath "//*[*/*/@name='$reqPlayer']" | Sort-Object -Property date,id | Select-Object -First 10 -ExpandProperty "node" | Select-Object -ExpandProperty id |  ForEach-Object { $playStar = "[geekurl=/play/details/$_]:star:[/geekurl]" ; $row = $row + $playStar ; $numPlays = $numPlays + 1 }
     $fillerStars = for( $i = $numPlays+1 ; $i -le 10; $i = $i + 1 ) { $row = $row + ':nostar:' }
-    #$gameLink = "[thing=$gameID]" + $gameName + '[/thing]'
     $gameLink = "[thing=$gameID][/thing]"
     $row = $row + $fillerStars + " $gameLink`n"
     
