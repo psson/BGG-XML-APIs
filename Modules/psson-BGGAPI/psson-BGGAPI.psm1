@@ -24,17 +24,23 @@ function Get-BGGGameName {
 }
 
 function Get-BGGChallengePlaysForEntry {
+    [cmdletbinding()]
     param (
         [string]$bggUser,
         [string[]]$gameIDs,
         [string]$year,
-        [string]$reqPlayer
+        [string]$reqPlayer,
+        [switch]$ListGames
     )
 
     $entry = ""
     $curGameNumber = 1
 
     foreach ( $gameID in $gameIDs ) {
+            if ( $listGames ) {
+                $curName = Get-BGGGameName -gameID $gameID
+                Write-Host "Fetching plays for $curName"
+            }
 	        if ( $curGameNumber -eq 11 ) {
 		        $entry = $entry + "`nAlternate game:`n"
 	        }
@@ -77,9 +83,7 @@ function Get-BGGHIndexList {
     $collectionUri = "https://boardgamegeek.com/xmlapi2/collection?username=$bggUser&subtype=boardgame&excludesubtype=boardgameexpansion&excludesubtype=boardgameaccessory&played=1"
     [xml]$xmlCollection = Invoke-WebRequest -Uri $collectionUri
 
-    # Slår upp sortindex bara för att få en uppsättning poster att arbeta med. 
-    # Borde vara en slagning på spel med <numplays> större än eller lika med $cutoff
-    #$boardgameItems = $xmlCollection | Select-Xml -XPath "//*[*/@sortindex='1']"
+    # Slår upp spel med numplays större än cutoff
     $boardgameItems = $xmlCollection | Select-Xml -XPath "//item[numplays>=$cutoff]"
 
     $playsList = @{}
