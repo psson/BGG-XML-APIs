@@ -24,17 +24,23 @@ function Get-BGGGameName {
 }
 
 function Get-BGGChallengePlaysForEntry {
+    [cmdletbinding()]
     param (
         [string]$bggUser,
         [string[]]$gameIDs,
         [string]$year,
-        [string]$reqPlayer
+        [string]$reqPlayer,
+        [switch]$ListGames
     )
 
     $entry = ""
     $curGameNumber = 1
 
     foreach ( $gameID in $gameIDs ) {
+            if ( $listGames ) {
+                $curName = Get-BGGGameName -gameID $gameID
+                Write-Host "Fetching plays for $curName"
+            }
 	        if ( $curGameNumber -eq 11 ) {
 		        $entry = $entry + "`nAlternate game:`n"
 	        }
@@ -54,8 +60,6 @@ function Get-BGGChallengePlaysForGame {
             [string]$reqPlayer
     )
 
-    #$gameName = Get-BGGGameName -gameID $gameID
-
     $playsUri = "https://boardgamegeek.com/xmlapi2/plays?username=$bggUser&id=$gameID&mindate=$year-01-01&maxdate=$year-12-31"
     [xml]$xmlPlays = Invoke-WebRequest -Uri $playsUri
     $numPlays = 0
@@ -63,7 +67,6 @@ function Get-BGGChallengePlaysForGame {
     $row = "$paddedGameNumber. "
     $xmlPlays | Select-Xml -XPath "//*[*/*/@name='$reqPlayer']" | Sort-Object -Property date,id | Select-Object -First 10 -ExpandProperty "node" | Select-Object -ExpandProperty id |  ForEach-Object { $playStar = "[geekurl=/play/details/$_]:star:[/geekurl]" ; $row = $row + $playStar ; $numPlays = $numPlays + 1 }
     $fillerStars = for( $i = $numPlays+1 ; $i -le 10; $i = $i + 1 ) { $row = $row + ':nostar:' }
-    #$gameLink = "[thing=$gameID]" + $gameName + '[/thing]'
     $gameLink = "[thing=$gameID][/thing]"
     $row = $row + $fillerStars + " $gameLink`n"
     
@@ -80,9 +83,7 @@ function Get-BGGHIndexList {
     $collectionUri = "https://boardgamegeek.com/xmlapi2/collection?username=$bggUser&subtype=boardgame&excludesubtype=boardgameexpansion&excludesubtype=boardgameaccessory&played=1"
     [xml]$xmlCollection = Invoke-WebRequest -Uri $collectionUri
 
-    # Slår upp sortindex bara för att få en uppsättning poster att arbeta med. 
-    # Borde vara en slagning på spel med <numplays> större än eller lika med $cutoff
-    #$boardgameItems = $xmlCollection | Select-Xml -XPath "//*[*/@sortindex='1']"
+    # Slår upp spel med numplays större än cutoff
     $boardgameItems = $xmlCollection | Select-Xml -XPath "//item[numplays>=$cutoff]"
 
     $playsList = @{}

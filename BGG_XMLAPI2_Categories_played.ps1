@@ -10,7 +10,7 @@ $uniqueLocations = $xmlBGGUserPlays.plays.play.location | Sort-Object | Get-Uniq
 
 
 $uniqueGamesPlayed = $xmlBGGUserPlays.plays.play | Select-Object -ExpandProperty item | Select-Object -ExpandProperty objectid | Sort-Object | Get-Unique
-$uniqueGamesPlayed | measure
+$uniqueGamesPlayed | measure-object
 
 $gameIDs = ''
 foreach ( $gamePlayed in $uniqueGamesPlayed ) {
