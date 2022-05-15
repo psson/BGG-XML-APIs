@@ -53,6 +53,7 @@ function Get-BGGChallengePlaysForEntry {
 }
 
 function Get-BGGChallengePlaysForGame {
+    [cmdletbinding()]
     param ( [string]$bggUser,
             [string]$gameID,
             [string]$year,
@@ -65,7 +66,15 @@ function Get-BGGChallengePlaysForGame {
     $numPlays = 0
     $paddedGameNumber = $([string]$gameNumber).PadLeft(2,'0')
     $row = "$paddedGameNumber. "
-    $xmlPlays | Select-Xml -XPath "//*[*/*/@name='$reqPlayer']" | Sort-Object -Property date,id | Select-Object -First 10 -ExpandProperty "node" | Select-Object -ExpandProperty id |  ForEach-Object { $playStar = "[geekurl=/play/details/$_]:star:[/geekurl]" ; $row = $row + $playStar ; $numPlays = $numPlays + 1 }
+    if ( $reqPlayer -eq '' ) {
+        # No required player
+        Write-Verbose "No required player"
+        $xmlPlays | Select-Xml -XPath "//*[*/@objecttype='thing']" | Sort-Object -Property date,id | Select-Object -First 10 -ExpandProperty "node" | Select-Object -ExpandProperty id |  ForEach-Object { $playStar = "[geekurl=/play/details/$_]:star:[/geekurl]" ; $row = $row + $playStar ; $numPlays = $numPlays + 1 }
+    } else {
+        # Required player present
+        Write-Verbose "Required player $reqPlayer"
+        $xmlPlays | Select-Xml -XPath "//*[*/*/@name='$reqPlayer']" | Sort-Object -Property date,id | Select-Object -First 10 -ExpandProperty "node" | Select-Object -ExpandProperty id |  ForEach-Object { $playStar = "[geekurl=/play/details/$_]:star:[/geekurl]" ; $row = $row + $playStar ; $numPlays = $numPlays + 1 }
+    }
     $fillerStars = for( $i = $numPlays+1 ; $i -le 10; $i = $i + 1 ) { $row = $row + ':nostar:' }
     $gameLink = "[thing=$gameID][/thing]"
     $row = $row + $fillerStars + " $gameLink`n"
@@ -197,3 +206,4 @@ Export-ModuleMember Get-BGGGameName
 Export-ModuleMember Get-BGGHIndexList
 Export-ModuleMember Get-BGGCategoriesForGame
 Export-ModuleMember Get-BGGNumCategoriesForGames
+Export-ModuleMember Get-BGGChallengePlaysForGame
