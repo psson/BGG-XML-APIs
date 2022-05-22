@@ -201,9 +201,199 @@ function Get-BGGNumCategoriesForGames {
 
 }
 
+function Get-BGGUniqueIDsFromPlays {
+    [cmdletbinding()]
+    param (
+        [string][Parameter(Mandatory)]$BGGuser,
+        [string]$StartDate,
+        [string]$EndDate
+    )
+
+    # Check date format, should be yyyy-mm-dd
+    $datePattern = '^[\d]{4}-[\d]{2}-[\d]{2}$'
+    if ( $startDate -notmatch $datePattern ) { throw 'Bad start date format' }
+    if ( $endDate -notmatch $datePattern ) { throw 'Bad end date format' }
+
+    $playsUri = "https://boardgamegeek.com/xmlapi2/plays?username=$bgguser&subtype=boardgame&mindate=$startDate&maxdate=$endDate"
+    [xml]$xmlPlays = Invoke-WebRequest -Uri $playsUri
+
+    # Calculate number of pages from total plays and 100 plays per page
+    $totalPlays = $xmlPlays.plays.total
+    $playsPerPage = 100
+    $numPages = [math]::Floor($totalPlays/$playsPerPage)
+    if ( ( $totalPlays%$playsPerPage ) -gt 0) { $numPages += 1 }
+
+    # Create dictionaries to store ids for games and expansions
+    $expDict = @{}
+    $idDict = @{}
+
+    # Get all pages of the result and store ids in
+
+    $curPage = 1
+
+    while ( $true ) {
+
+        # Store all expansion ids in a dictionary
+        Get-UniqueExpansionIDs -xmlPlays $xmlPlays -bgexpDict $expDict
+        # Store all gameids in a dictionary
+        Get-UniqueIDs -xmlPlays $xmlPlays -bgexpDict $expDict -bgDict $idDict
+    
+        # Increment $curPage and break out of the loop if number of pages are exceeded
+        $curPage++
+        if ( $curPage -gt $numPages ) {
+            BREAK
+        }
+
+        # Fetch next page of results
+        $playsUriPage = $playsUri + "&page=$curPage"
+        [xml]$xmlPlays = Invoke-WebRequest -Uri $playsUriPage
+
+    }
+
+    # Add expansion-IDs to dictionary that already contains the boardgame IDs
+    foreach ( $key in $expDict.Keys ) {
+        $curKey = $key
+        $idDict.Add($curKey,'bgexp')
+    }
+    
+
+    return $idDict
+
+}
+
+function Get-UniqueExpansionIDs {
+    [cmdletbinding()]
+    param(
+        [xml]$xmlPlays,
+        [hashtable]$bgexpDict
+    )
+
+    $expansionItems = $xmlPlays | Select-Xml -XPath "//*[*/*/@value='boardgameexpansion']"
+
+    foreach ( $item in $expansionItems ) {
+        $curID = $item.Node.objectid
+        
+        if ( $bgexpDict.ContainsKey( $curID ) ) {
+            # Do nothing, already has key
+        } else {
+            $bgexpDict.Add( $curID,'bgexp' )
+        }
+    }
+
+}
+
+function Get-UniqueIDs {
+    [cmdletbinding()]
+    param(
+        [xml]$xmlPlays,
+        [hashtable]$bgexpDict,
+        [hashtable]$bgDict
+    )
+
+    # Select all plays of boardgames from xml data
+    $boardgameItems = $xmlPlays | Select-Xml -XPath "//*[*/*/@value='boardgame']"
+
+    # Add ids that are board games to the dictionary as boardgames with value bg
+    foreach ( $item in $boardgameItems ) {
+        $curID = $item.Node.objectid
+        
+        if ( $bgDict.ContainsKey( $curID ) ) {
+            # Do nothing, ID is already present in dictionary
+        } elseif ( $bgexpDict.ContainsKey( $curID ) ) {
+            # Do nothing, ID is an expansion
+        } else {
+            # Add a board game id to the dictionary
+            $bgDict.Add( $curID,'bg' )
+        }
+    }
+
+}
+
+function Get-BGGUniqueGamesAndExpansionsText {
+    [cmdletbinding()]
+    param (
+        [string][Parameter(Mandatory)]$BGGuser,
+        [string]$StartDate,
+        [string]$EndDate
+    )
+    <#
+    param (
+        [hashtable]$idDict
+    )
+    #>
+
+    # Get a dictionary containing all ids of boardgames and expaniosn played in the time interval
+    $idDict = Get-BGGUniqueIDsFromPlays -BGGuser $BGGUser -StartDate $StartDate -EndDate $EndDate
+
+    # Create BGG-code for boardgames based on the dictionary
+    
+    $bgText = ''
+    $curItem=1
+    foreach ( $key in $idDict.Keys ) {
+        Write-Verbose $key
+        if ( $idDict[$key] -eq 'bg' ) {
+            $curID = $key
+            $bgText = $bgText + "$curItem. [thing=$curID][/thing]`n"
+            $curItem++
+        }
+    }
+    $curItem--
+    $bgHeader = "[b]Unique Games: $curItem[/b]`n"
+
+    # Create BGG-code for expansions based on dictionary
+    $numExpansions = $bgexpDict.Count
+    $expText = ''
+    $curItem=1
+    foreach ( $key in $idDict.Keys ) {
+        Write-Verbose $key
+        if ( $idDict[$key] -eq 'bgexp' ) {
+            $curID = $key
+            $expText = $expText + "$curItem. [thing=$curID][/thing]`n"
+            $curItem++
+        }
+    }
+    $curItem--
+    $expHeader = "`n[b]Unique Expansions: $curItem[/b]`n"
+
+    $retText = $bgHeader + $bgText + $expHeader + $expText
+
+    return $retText
+
+}
+
+<#
+$myIDs = Get-BGGUniqueIDsFromPlays -bgguser 'psson73' -startDate '2022-01-01' -endDate '2022-04-03'
+$myIDs
+
+$numIDs = 0
+$numBGs = 0
+$numBGExp = 0
+
+foreach ( $key in $myIDs.Keys ) {
+    $numIDs +=1
+    if ( $myIDs[$key] -eq 'bg' ) {
+        $numBGs +=1
+    } elseif ( $myIDs[$key] -eq 'bgexp' ) {
+        $numBGExp +=1acc
+    }
+}
+
+$numIDs
+$numBGs
+$numBGExp
+
+# Skapa BGG-kod och skicka till clipboard
+Get-BGGUniqueGamesAndExpansionsText -idDict $myIDs | clip
+#>
+
+
+
+
 Export-ModuleMember Get-BGGChallengePlaysForEntry
 Export-ModuleMember Get-BGGGameName
 Export-ModuleMember Get-BGGHIndexList
 Export-ModuleMember Get-BGGCategoriesForGame
 Export-ModuleMember Get-BGGNumCategoriesForGames
 Export-ModuleMember Get-BGGChallengePlaysForGame
+Export-ModuleMember Get-BGGUniqueIDsFromPlays
+Export-ModuleMember Get-BGGUniqueGamesAndExpansionsText
