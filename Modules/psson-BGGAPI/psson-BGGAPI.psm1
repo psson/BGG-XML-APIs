@@ -110,7 +110,7 @@ function Get-BGGHIndexList {
     }
 
     $curRow = 1
-    $HIndexList = "[BGCOLOR=#CCFF00]"
+    $HIndexList = "[BGCOLOR=#66FF00]"
     $aboveTarget = $true
     $notStartedBelowTarget = $true
 
@@ -341,7 +341,6 @@ function Get-BGGUniqueGamesAndExpansionsText {
     $bgHeader = "[b]Unique Games: $curItem[/b]`n"
 
     # Create BGG-code for expansions based on dictionary
-    $numExpansions = $bgexpDict.Count
     $expText = ''
     $curItem=1
     foreach ( $key in $idDict.Keys ) {
@@ -361,33 +360,79 @@ function Get-BGGUniqueGamesAndExpansionsText {
 
 }
 
-<#
-$myIDs = Get-BGGUniqueIDsFromPlays -bgguser 'psson73' -startDate '2022-01-01' -endDate '2022-04-03'
-$myIDs
+function Get-BGGUnplayedGameIDs {
+    [cmdletbinding()]
+    param(
+        [string][Parameter(Mandatory)]$BGGUser,
+        [switch][Parameter()]$Owned,
+        [string][Parameter()]$StartDate,
+        [string][Parameter()]$EndDate
+    )
 
-$numIDs = 0
-$numBGs = 0
-$numBGExp = 0
+    <#
+    Fetch IDs for unplayed games for user collection
+    Either no dates or both dates should be supplied
+    If no date is supplied, the entire collection is downloaded 
+    #>
 
-foreach ( $key in $myIDs.Keys ) {
-    $numIDs +=1
-    if ( $myIDs[$key] -eq 'bg' ) {
-        $numBGs +=1
-    } elseif ( $myIDs[$key] -eq 'bgexp' ) {
-        $numBGExp +=1acc
+    if ( $Owned ) {
+        $own = 1
+    } else {
+        $own = 0
     }
+
+    $unplayedIDs = @{}
+
+    if ( ( $StartDate -eq '' ) -or ( $EndDate -eq '' ) ) {
+
+        Write-Verbose "No dates provided"
+
+        # At least one of the dates are empty, get all owned, unplayed games in collection
+        $unplayedUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$Owned&played=0&wishlist=0"
+        [xml]$unplayedGames = Invoke-WebRequest -Uri $unplayedUri
+
+        # Get all gameIDs to a dictionary
+
+        $unplayedGames.items.item.objectid | ForEach-Object { $unplayedIDs.Add($_,'unplayed') }
+
+    } else {
+
+        Write-Verbose "Dates provided"
+
+        # Get unique IDs of games and expansions played in the specified period
+        [hashtable]$playedIDs = Get-BGGUniqueIDsFromPlays -BGGuser $BGGUser -StartDate $StartDate -EndDate $EndDate
+
+        # Get games from user collection
+        $gamesUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$Owned"
+        [xml]$games = Invoke-WebRequest -Uri $gamesUri
+
+        # Get all gameIDs to a dictionary
+
+        $allIDs = $games.items.item.objectid
+
+        foreach ( $id in $allIDs ) {
+            if ( $playedIDs.ContainsKey( $id ) ) {
+                #ID is played, ignore
+            } else {
+                
+                try {
+                    $unplayedIDs.Add( $id, 'unplayed' )
+                }
+                catch [System.Management.Automation.MethodInvocationException] {
+                    # Exception adding duplicate, ignore
+                }
+                
+            }
+        }
+        
+    }
+
+    return $unplayedIDs
 }
 
-$numIDs
-$numBGs
-$numBGExp
-
-# Skapa BGG-kod och skicka till clipboard
-Get-BGGUniqueGamesAndExpansionsText -idDict $myIDs | clip
+<#
+Export module functions
 #>
-
-
-
 
 Export-ModuleMember Get-BGGChallengePlaysForEntry
 Export-ModuleMember Get-BGGGameName
@@ -397,3 +442,4 @@ Export-ModuleMember Get-BGGNumCategoriesForGames
 Export-ModuleMember Get-BGGChallengePlaysForGame
 Export-ModuleMember Get-BGGUniqueIDsFromPlays
 Export-ModuleMember Get-BGGUniqueGamesAndExpansionsText
+Export-ModuleMember Get-BGGUnplayedGameIDs
