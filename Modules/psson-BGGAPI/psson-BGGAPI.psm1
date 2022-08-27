@@ -12,15 +12,24 @@
 }
 
 function Get-BGGGameName {
+    [cmdletbinding()]
     param (
-        [string]$gameID
+        [string][Parameter(Mandatory,ValueFromPipeline)]$gameID
     )
 
-    $thingType='boardgame'
+    begin {}
 
-    $gameName = Get-BGGThing -thingID $gameID -thingTypes $thingType | Select-Xml -XPath "/items/item/name[@type='primary']" | Select-Object -ExpandProperty "node" | Select-Object -Property value -ExpandProperty value
+    process {
+        $thingType='boardgame'
 
-    return $gameName
+        $gameName = Get-BGGThing -thingID $gameID -thingTypes $thingType | Select-Xml -XPath "/items/item/name[@type='primary']" | Select-Object -ExpandProperty "node" | Select-Object -Property value -ExpandProperty value
+
+        return $gameName
+    }
+
+    end {}
+
+    
 }
 
 function Get-BGGChallengePlaysForEntry {
