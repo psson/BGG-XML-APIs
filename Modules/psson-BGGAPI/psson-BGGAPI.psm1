@@ -397,7 +397,7 @@ function Get-BGGUnplayedGameIDs {
         Write-Verbose "No dates provided"
 
         # At least one of the dates are empty, get all owned, unplayed games in collection
-        $unplayedUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$Owned&played=0&wishlist=0"
+        $unplayedUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$own&played=0&wishlist=0"
         [xml]$unplayedGames = Invoke-WebRequest -Uri $unplayedUri
 
         # Get all gameIDs to a dictionary
@@ -412,7 +412,7 @@ function Get-BGGUnplayedGameIDs {
         [hashtable]$playedIDs = Get-BGGUniqueIDsFromPlays -BGGuser $BGGUser -StartDate $StartDate -EndDate $EndDate
 
         # Get games from user collection
-        $gamesUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$Owned"
+        $gamesUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$own"
         [xml]$games = Invoke-WebRequest -Uri $gamesUri
 
         # Get all gameIDs to a dictionary
