@@ -154,6 +154,64 @@ function Get-BGGHIndexList {
 
 }
 
+function Get-BGGCategoriesForGamesToFile {
+    [cmdletbinding()]
+    param(
+        [string][Parameter(Mandatory)]$BGGuser,
+        [string]$StartDate,
+        [string]$EndDate
+    )
+
+    # Get play data from BGG. Note that the dictionary returns both boardgames and expansions with
+    # the value 'bg' and 'bgexp' respectively.
+    Write-verbose "About to look up plays to dictionary"
+    [hashtable]$idDict = Get-BGGUniqueIDsFromPlays -BGGuser $BGGUser -StartDate $StartDate -EndDate $EndDate
+    $numEntries = $idDict.Keys | Measure-Object | Select-Object -ExpandProperty Count
+    Write-verbose $numEntries
+    
+    Write-Verbose "Setting up file"
+
+    if ($psISE) {
+        # Objektet finns, skriptet körs från ISE.
+        # Hämta sökvägen från $psISE
+        $basePath = Split-Path -Path $psISE.CurrentFile.FullPath
+    } else {
+        # Alla andra fall, använd $PSScriptRoot
+        $basePath = $PSScriptRoot
+    }
+
+    $now = Get-Date -Format 'yyyyMMdd_HHmm'
+    $defaultFilename = "$BGGuser_Categories_$now.txt"
+    $filename = Get-SaveFileName -InitialDirectory $basePath -DefaultFileName $defaultFilename
+
+    "Game categories for $BGGUser`nStart date`: $StartDate`nEnd date`: $EndDate`n`n" | Out-File -FilePath $filename -Encoding utf8
+
+    Write-verbose "About to loop through IDs"
+    foreach ( $gameID in $idDict.Keys ) {
+        
+        # Use dictionary to create a string of game IDs
+        #<#
+        if ( $idDict[$gameID] -eq 'bg' ) {
+            # Boardgame ID, add to string
+            $thingIDs = $thingIDs + ",$gameID"
+        } else {
+            # Board game expansion, ignore
+        }
+        #>
+    }
+
+    # Remove last comma from string of game IDs
+    $thingIDs = $thingIDs -replace ".$"
+
+    # Get XML data for all played games
+    $thingsURI="https://boardgamegeek.com/xmlapi2/thing?id=$thingIDs"
+    Write-Verbose $thingsURI
+    #[xml]$things = Invoke-WebRequest -Uri $thingsUri
+
+    # Get name and categories for each game, output to file
+
+}
+
 function Get-BGGCategoriesForGame {
     [cmdletbinding()]
     param (
@@ -331,7 +389,7 @@ function Get-BGGUniqueGamesAndExpansionsText {
     )
     #>
 
-    # Get a dictionary containing all ids of boardgames and expaniosn played in the time interval
+    # Get a dictionary containing all ids of boardgames and expanions played in the time interval
     $idDict = Get-BGGUniqueIDsFromPlays -BGGuser $BGGUser -StartDate $StartDate -EndDate $EndDate
 
     # Create BGG-code for boardgames based on the dictionary
@@ -397,7 +455,7 @@ function Get-BGGUnplayedGameIDs {
         Write-Verbose "No dates provided"
 
         # At least one of the dates are empty, get all owned, unplayed games in collection
-        $unplayedUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$Owned&played=0&wishlist=0"
+        $unplayedUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$own&played=0&wishlist=0"
         [xml]$unplayedGames = Invoke-WebRequest -Uri $unplayedUri
 
         # Get all gameIDs to a dictionary
@@ -412,7 +470,7 @@ function Get-BGGUnplayedGameIDs {
         [hashtable]$playedIDs = Get-BGGUniqueIDsFromPlays -BGGuser $BGGUser -StartDate $StartDate -EndDate $EndDate
 
         # Get games from user collection
-        $gamesUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$Owned"
+        $gamesUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$own"
         [xml]$games = Invoke-WebRequest -Uri $gamesUri
 
         # Get all gameIDs to a dictionary
@@ -439,6 +497,22 @@ function Get-BGGUnplayedGameIDs {
     return $unplayedIDs
 }
 
+Function Get-SaveFileName {  
+    param (
+        [string]$InitialDirectory,
+        [string]$DefaultFileName
+    )
+    [System.Reflection.Assembly]::LoadWithPartialName(“System.Windows.Forms”) | Out-Null
+
+    $OpenFileDialog = New-Object System.Windows.Forms.SaveFileDialog
+    $OpenFileDialog.initialDirectory = $InitialDirectory
+    $OpenFileDialog.filter = “Textfiler (*.txt)| *.txt”
+    $OpenFileDialog.Title = "Välj fil"
+    $OpenFileDialog.filename = $DefaultFileName
+    $OpenFileDialog.ShowDialog() | Out-Null
+    $OpenFileDialog.filename
+}
+
 <#
 Export module functions
 #>
@@ -446,6 +520,7 @@ Export module functions
 Export-ModuleMember Get-BGGChallengePlaysForEntry
 Export-ModuleMember Get-BGGGameName
 Export-ModuleMember Get-BGGHIndexList
+Export-ModuleMember Get-BGGCategoriesForGamesToFile
 Export-ModuleMember Get-BGGCategoriesForGame
 Export-ModuleMember Get-BGGNumCategoriesForGames
 Export-ModuleMember Get-BGGChallengePlaysForGame
