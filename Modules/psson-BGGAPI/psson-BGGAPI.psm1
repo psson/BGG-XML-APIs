@@ -42,6 +42,8 @@ function Get-BGGChallengePlaysForEntry {
         [switch]$ListGames
     )
 
+    # TODO: BGGConfig Examine provided username and set default username if missing
+
     $entry = ""
     $curGameNumber = 1
 
@@ -70,6 +72,8 @@ function Get-BGGChallengePlaysForGame {
             [string]$reqPlayer
     )
 
+    # TODO: BGGConfig Examine provided username and set default username if missing
+
     $playsUri = "https://boardgamegeek.com/xmlapi2/plays?username=$bggUser&id=$gameID&mindate=$year-01-01&maxdate=$year-12-31"
     [xml]$xmlPlays = Invoke-WebRequest -Uri $playsUri
     $numPlays = 0
@@ -90,6 +94,108 @@ function Get-BGGChallengePlaysForGame {
     
     return $row
 
+}
+
+function Get-BGGDiversityChallengeList {
+    [cmdletbinding()]
+    param (
+        [Parameter()][string]$BGGUser,
+        [Parameter()][string]$StartDate,
+        [Parameter()][string]$EndDate
+    )
+
+    # TODO: BGGConfig Examine provided username and set to default username if missing
+    # TODO: Examine provided start and end dates and set to year start and year end if missing
+
+    # Construct API URL for games played by user in given year
+    $url = "https://www.boardgamegeek.com/xmlapi2/plays?username=$BGGUser&mindate=$StartDate&maxdate=$EndDate"
+
+    # Query the API and parse the XML response
+    $response = Invoke-RestMethod $url
+    $plays = $response.plays.play
+
+    # Sort the plays by date in ascending order by date and play id
+    $plays = $plays | Sort-Object -Property date,id
+
+    # Korrekt hit ner
+    # $plays
+
+    # Create an empty dictionary to store unique games and their first play dates
+    $uniqueGames = @{}
+
+    # Loop through each play and add the game to the dictionary if it hasn't been added before
+    foreach ($play in $plays) {
+        $gameId = $play.item.objectid
+        $playDate = $play.date
+
+        $subtypes = $play.item.subtypes.subtype
+
+        $isExpansion = $false
+
+        foreach ( $subtype in $subtypes ) {
+            $curType = $subtype.value
+            if ( $curType -eq 'boardgameexpansion') {
+                Write-Verbose "Expansion found"
+                $isExpansion = $true
+            }
+        }
+
+        if ( $uniqueGames.ContainsKey($gameId) ) {
+            # GameID already found, don't do anything
+        } elseif ( $isExpansion ) {
+            # GameID is expansion, don't add
+        } else {
+            # Add game to dictionary
+            $uniqueGames.Add($gameId, $playDate)
+        }
+    }
+
+    # Create a comma-separated string of game IDs to use in the API query
+    $gameIds = $uniqueGames.Keys -join ","
+
+    # Construct API URL for game details
+    $url = "https://www.boardgamegeek.com/xmlapi2/thing?id=$gameIds"
+
+    # Query the API and parse the XML response
+    $response = Invoke-RestMethod $url
+    $games = $response.items.item
+
+    # Create a dictionary of game IDs and names
+    $gameNames = @{}
+    foreach ($game in $games) {
+        
+        $gameId = $game.id
+        $gameName = $game.name | Where-Object { $_.type -eq "primary" } | Select-Object -ExpandProperty value
+
+        $gameNames.Add($gameId, $gameName)
+        
+    }
+
+    $numUniqueGames = $uniqueGames.Count
+    Write-Verbose "Total games: $numUniqueGames"
+    $output = "In for 100 different games`n`nCurrently at $numUniqueGames`n`n"
+    
+
+    # Output the unique games and their first play dates
+    $uniqueGames.GetEnumerator() | Sort-Object -Property value | ForEach-Object {
+        $gameId = $_.Key
+        $playDate = $_.Value
+        $gameName = $gameNames[$gameId]
+
+        # Output the game name and first play date
+        Write-Verbose "Game: $gameName"
+        Write-Verbose "First play date: $playDate"
+
+        $curLine = "[thing=$gameID][/thing], $playDate`n"
+        $output += $curLine
+        
+    }
+
+    Write-Verbose $output
+
+    return $output
+
+    
 }
 
 function Get-BGGHIndexList {
@@ -343,6 +449,7 @@ function Get-UniqueExpansionIDs {
         if ( $bgexpDict.ContainsKey( $curID ) ) {
             # Do nothing, already has key
         } else {
+            # Add key to dictionary
             $bgexpDict.Add( $curID,'bgexp' )
         }
     }
@@ -519,6 +626,7 @@ Export module functions
 
 Export-ModuleMember Get-BGGChallengePlaysForEntry
 Export-ModuleMember Get-BGGGameName
+Export-ModuleMember Get-BGGDiversityChallengeList
 Export-ModuleMember Get-BGGHIndexList
 Export-ModuleMember Get-BGGCategoriesForGamesToFile
 Export-ModuleMember Get-BGGCategoriesForGame
