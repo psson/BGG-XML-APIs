@@ -106,95 +106,122 @@ function Get-BGGDiversityChallengeList {
 
     # TODO: BGGConfig Examine provided username and set to default username if missing
     # TODO: Examine provided start and end dates and set to year start and year end if missing
+    # TODO: Add link to first play
 
     # Construct API URL for games played by user in given year
     $url = "https://www.boardgamegeek.com/xmlapi2/plays?username=$BGGUser&mindate=$StartDate&maxdate=$EndDate"
 
     # Query the API and parse the XML response
     $response = Invoke-RestMethod $url
-    $plays = $response.plays.play
 
-    # Sort the plays by date in ascending order by date and play id
-    $plays = $plays | Sort-Object -Property date,id
+    # Calculate number of pages from total plays and 100 plays per page
+    $totalPlays = $response.plays.total
+    $playsPerPage = 100
+    # Find the number of pages by integer division
+    $numPages = [math]::Floor($totalPlays/$playsPerPage)
+    # Check if there's a remainder (usually) and add a page for that
+    if ( ( $totalPlays%$playsPerPage ) -gt 0) { $numPages += 1 }
+    Write-Debug "Total plays, expansions included: $totalPlays"
+    Write-Debug "Pages: $numPages"
 
-    # Korrekt hit ner
-    # $plays
+    # Create dictionary for object ids with dates
+    $firstPlays = @{}
 
-    # Create an empty dictionary to store unique games and their first play dates
-    $uniqueGames = @{}
+    # Set counter for current page of results
+    # Used for fetching 
+    $curPage=1
 
-    # Loop through each play and add the game to the dictionary if it hasn't been added before
-    foreach ($play in $plays) {
-        $gameId = $play.item.objectid
-        $playDate = $play.date
+    # For each page
+    while ( $true ) { 
 
-        $subtypes = $play.item.subtypes.subtype
+        # Get page plays to a "nice" variable
+        $plays = $response.plays.play #| Select-Object -First $maxPlaysPerPage
 
-        $isExpansion = $false
+        # For each play
 
-        foreach ( $subtype in $subtypes ) {
-            $curType = $subtype.value
-            if ( $curType -eq 'boardgameexpansion') {
-                Write-Verbose "Expansion found"
-                $isExpansion = $true
+        foreach ( $play in $plays ) {
+            
+            $bgPlay = $true     # Play is a play of a boardgame
+            $playID = $play.id
+            Write-debug "Play ID: $playID"
+
+            # Get subtypes to a "nice" variable
+            $subtypes = $play.item.subtypes.subtype
+            
+            # Is expansion, do nothing
+            foreach ( $subtype in $subtypes ) {
+                $subVal = $subtype.value
+                if ( $subVal -eq 'boardgameexpansion') {
+                    Write-Debug "Play is an expansion, don't process"
+                    $bgPlay = $false
+                }
             }
+            
+
+            #<#
+            if ( $bgPlay ) {
+                $itemID = $play.item.objectid
+                $curDate = $play.date
+                # ID not in dictionary, add with date
+                if ( -not $firstPlays.Contains($itemID) ) {
+                    Write-Debug "Item $itemID not in dictionary. Adding it..."
+                    $firstPlays[$itemID]=$curDate
+                } else {
+                    # ID in dictionary
+                    
+                    if ( $curDate -lt $firstPlays[$itemid] ) {
+                        # If current date newer than date in dictionary, replace date
+                        Write-Debug "Current date, $curDate is less the registered date for $itemID. Replacing..."
+                        $firstPlays[$itemID] = $curDate
+                    }
+                }
+                    
+            }
+
+            #>
+
+            
+        
         }
 
-        if ( $uniqueGames.ContainsKey($gameId) ) {
-            # GameID already found, don't do anything
-        } elseif ( $isExpansion ) {
-            # GameID is expansion, don't add
+        # If last page, quit
+        if ( $curPage -ge $numPages ) {
+            # On last page, break out of loop
+            Write-Debug "Last page processed, exiting..."
+            BREAK
         } else {
-            # Add game to dictionary
-            $uniqueGames.Add($gameId, $playDate)
+            # Increment current page
+            Write-Debug "Page $curPage of $numPages processed, continuing..."
+            $curPage++
+            
+            # Construct API URL for games played by user in given year
+            $url = "https://www.boardgamegeek.com/xmlapi2/plays?username=$BGGUser&mindate=$StartDate&maxdate=$EndDate&page=$curPage"
+
+            # Query the API and parse the XML response
+            $response = Invoke-RestMethod $url
+            
         }
+
+        
+
     }
 
-    # Create a comma-separated string of game IDs to use in the API query
-    $gameIds = $uniqueGames.Keys -join ","
+    # Create BGG code
 
-    # Construct API URL for game details
-    $url = "https://www.boardgamegeek.com/xmlapi2/thing?id=$gameIds"
+    $sortedItems = $firstPlays.GetEnumerator() | Sort-Object -Property Value
 
-    # Query the API and parse the XML response
-    $response = Invoke-RestMethod $url
-    $games = $response.items.item
+    #Write-Output "Total games played: $($firstPlays.Count)"
 
-    # Create a dictionary of game IDs and names
-    $gameNames = @{}
-    foreach ($game in $games) {
-        
-        $gameId = $game.id
-        $gameName = $game.name | Where-Object { $_.type -eq "primary" } | Select-Object -ExpandProperty value
+    $output = "In for 100 different games`n`nCurrently at $($firstPlays.Count)`n`n"
 
-        $gameNames.Add($gameId, $gameName)
-        
-    }
-
-    $numUniqueGames = $uniqueGames.Count
-    Write-Verbose "Total games: $numUniqueGames"
-    $output = "In for 100 different games`n`nCurrently at $numUniqueGames`n`n"
-    
-
-    # Output the unique games and their first play dates
-    $uniqueGames.GetEnumerator() | Sort-Object -Property value | ForEach-Object {
-        $gameId = $_.Key
-        $playDate = $_.Value
-        $gameName = $gameNames[$gameId]
-
-        # Output the game name and first play date
-        Write-Verbose "Game: $gameName"
-        Write-Verbose "First play date: $playDate"
-
-        $curLine = "[thing=$gameID][/thing], $playDate`n"
+    foreach ( $item in $sortedItems ) {
+        $curLine = "[thing=$($item.key)][/thing] - $($item.Value)`n"
         $output += $curLine
-        
     }
 
     Write-Verbose $output
 
     return $output
-
     
 }
 
