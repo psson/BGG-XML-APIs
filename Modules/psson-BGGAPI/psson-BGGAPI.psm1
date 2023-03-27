@@ -42,6 +42,8 @@ function Get-BGGChallengePlaysForEntry {
         [switch]$ListGames
     )
 
+    # TODO: BGGConfig Examine provided username and set default username if missing
+
     $entry = ""
     $curGameNumber = 1
 
@@ -70,6 +72,8 @@ function Get-BGGChallengePlaysForGame {
             [string]$reqPlayer
     )
 
+    # TODO: BGGConfig Examine provided username and set default username if missing
+
     $playsUri = "https://boardgamegeek.com/xmlapi2/plays?username=$bggUser&id=$gameID&mindate=$year-01-01&maxdate=$year-12-31"
     [xml]$xmlPlays = Invoke-WebRequest -Uri $playsUri
     $numPlays = 0
@@ -90,6 +94,135 @@ function Get-BGGChallengePlaysForGame {
     
     return $row
 
+}
+
+function Get-BGGDiversityChallengeList {
+    [cmdletbinding()]
+    param (
+        [Parameter()][string]$BGGUser,
+        [Parameter()][string]$StartDate,
+        [Parameter()][string]$EndDate
+    )
+
+    # TODO: BGGConfig Examine provided username and set to default username if missing
+    # TODO: Examine provided start and end dates and set to year start and year end if missing
+    # TODO: Add link to first play
+
+    # Construct API URL for games played by user in given year
+    $url = "https://www.boardgamegeek.com/xmlapi2/plays?username=$BGGUser&mindate=$StartDate&maxdate=$EndDate"
+
+    # Query the API and parse the XML response
+    $response = Invoke-RestMethod $url
+
+    # Calculate number of pages from total plays and 100 plays per page
+    $totalPlays = $response.plays.total
+    $playsPerPage = 100
+    # Find the number of pages by integer division
+    $numPages = [math]::Floor($totalPlays/$playsPerPage)
+    # Check if there's a remainder (usually) and add a page for that
+    if ( ( $totalPlays%$playsPerPage ) -gt 0) { $numPages += 1 }
+    Write-Debug "Total plays, expansions included: $totalPlays"
+    Write-Debug "Pages: $numPages"
+
+    # Create dictionary for object ids with dates
+    $firstPlays = @{}
+
+    # Set counter for current page of results
+    # Used for fetching 
+    $curPage=1
+
+    # For each page
+    while ( $true ) { 
+
+        # Get page plays to a "nice" variable
+        $plays = $response.plays.play #| Select-Object -First $maxPlaysPerPage
+
+        # For each play
+
+        foreach ( $play in $plays ) {
+            
+            $bgPlay = $true     # Play is a play of a boardgame
+            $playID = $play.id
+            Write-debug "Play ID: $playID"
+
+            # Get subtypes to a "nice" variable
+            $subtypes = $play.item.subtypes.subtype
+            
+            # Is expansion, do nothing
+            foreach ( $subtype in $subtypes ) {
+                $subVal = $subtype.value
+                if ( $subVal -eq 'boardgameexpansion') {
+                    Write-Debug "Play is an expansion, don't process"
+                    $bgPlay = $false
+                }
+            }
+            
+
+            #<#
+            if ( $bgPlay ) {
+                $itemID = $play.item.objectid
+                $curDate = $play.date
+                # ID not in dictionary, add with date
+                if ( -not $firstPlays.Contains($itemID) ) {
+                    Write-Debug "Item $itemID not in dictionary. Adding it..."
+                    $firstPlays[$itemID]=$curDate
+                } else {
+                    # ID in dictionary
+                    
+                    if ( $curDate -lt $firstPlays[$itemid] ) {
+                        # If current date newer than date in dictionary, replace date
+                        Write-Debug "Current date, $curDate is less the registered date for $itemID. Replacing..."
+                        $firstPlays[$itemID] = $curDate
+                    }
+                }
+                    
+            }
+
+            #>
+
+            
+        
+        }
+
+        # If last page, quit
+        if ( $curPage -ge $numPages ) {
+            # On last page, break out of loop
+            Write-Debug "Last page processed, exiting..."
+            BREAK
+        } else {
+            # Increment current page
+            Write-Debug "Page $curPage of $numPages processed, continuing..."
+            $curPage++
+            
+            # Construct API URL for games played by user in given year
+            $url = "https://www.boardgamegeek.com/xmlapi2/plays?username=$BGGUser&mindate=$StartDate&maxdate=$EndDate&page=$curPage"
+
+            # Query the API and parse the XML response
+            $response = Invoke-RestMethod $url
+            
+        }
+
+        
+
+    }
+
+    # Create BGG code
+
+    $sortedItems = $firstPlays.GetEnumerator() | Sort-Object -Property Value
+
+    #Write-Output "Total games played: $($firstPlays.Count)"
+
+    $output = "In for 100 different games`n`nCurrently at $($firstPlays.Count)`n`n"
+
+    foreach ( $item in $sortedItems ) {
+        $curLine = "[thing=$($item.key)][/thing] - $($item.Value)`n"
+        $output += $curLine
+    }
+
+    Write-Verbose $output
+
+    return $output
+    
 }
 
 function Get-BGGHIndexList {
@@ -343,6 +476,7 @@ function Get-UniqueExpansionIDs {
         if ( $bgexpDict.ContainsKey( $curID ) ) {
             # Do nothing, already has key
         } else {
+            # Add key to dictionary
             $bgexpDict.Add( $curID,'bgexp' )
         }
     }
@@ -519,6 +653,7 @@ Export module functions
 
 Export-ModuleMember Get-BGGChallengePlaysForEntry
 Export-ModuleMember Get-BGGGameName
+Export-ModuleMember Get-BGGDiversityChallengeList
 Export-ModuleMember Get-BGGHIndexList
 Export-ModuleMember Get-BGGCategoriesForGamesToFile
 Export-ModuleMember Get-BGGCategoriesForGame
