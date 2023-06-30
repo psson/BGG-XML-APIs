@@ -1,4 +1,60 @@
-﻿function Get-BGGThing {
+﻿function Get-BGGCollection {
+    [cmdletbinding()]
+    param (
+        [Parameter(Mandatory)][string]$Uri,
+        [Parameter()][Int32]$maxTries=3,
+        [Parameter()][Int32]$retryTimeout=5
+    )
+
+    # Status codes for 
+    $statusSuccess = '200'
+    $statusQueued = '202'
+
+    $queued = $true
+    $failed = $null
+    $tryNum = 1
+
+    while ( $queued ) {
+
+        
+        # Attempt to get data and cast as XML
+        [xml]$response = Invoke-RestMethod -Uri $Uri -StatusCodeVariable 'scv'
+        Write-Debug "Status code of request to BGG XML API 2 is $scv"
+        # Check status code of the attempt
+        if ( $scv -match $statusSuccess ) {
+            # Got the data we're looking for
+            $queued = $false
+        } elseif ( $scv -match $statusQueued ) {
+            # Call queued, increment number of tries and check if max tries reached
+            $tryNum++
+            # If max tries is reached, break off attempt
+            # Otherwise, wait for a new try
+            if ( $tryNum -gt $maxTries ) {
+                $queued = $false
+                $failed = "Maximum number of tries exceeded"
+            } else {
+                Write-Debug "Attempt $tryNum of $maxTries queued, waiting $retryTimeout seconds before next call..."
+                Start-Sleep -Seconds $retryTimeout
+            }
+            
+        } else {
+            # Something bad happened
+            $queued = $false
+            Write-Debug "Unknown error. Status code $scv"
+        }
+
+
+    }
+
+    if ( $failed -notmatch $null ) {
+        return $null
+    } else {
+        return $response
+    }
+
+}
+
+function Get-BGGThing {
     param (
         [string]$thingID,
         [string]$thingTypes
@@ -55,7 +111,7 @@ function Get-BGGChallengePlaysForEntry {
 	        if ( $curGameNumber -eq 11 ) {
 		        $entry = $entry + "`nAlternate game:`n"
 	        }
-	        $newRow = Get-BGGChallengePlaysForGame -bggUser $bggUser -gameID $gameID -year $year -gameNumber $curGameNumber -reqPlayer $reqPlayer
+	        $newRow = Get-BGGChallengePlaysForGame -bggUser $bggUser -gameID $gameID -year $year -gameNumber $curGameNumber -reqPlayer $reqPlayer -Verbose:$VerbosePreference
 	        $entry = $entry + $newRow
 	        $curGameNumber = $curGameNumber + 1
     }
@@ -226,64 +282,72 @@ function Get-BGGDiversityChallengeList {
 }
 
 function Get-BGGHIndexList {
+    [cmdletbinding()]
     param (
         [string]$bggUser,
         [int32]$target,
         [int32]$cutoff
     )
     $collectionUri = "https://boardgamegeek.com/xmlapi2/collection?username=$bggUser&subtype=boardgame&excludesubtype=boardgameexpansion&excludesubtype=boardgameaccessory&played=1"
-    [xml]$xmlCollection = Invoke-WebRequest -Uri $collectionUri
+    #[xml]$xmlCollection = Invoke-WebRequest -Uri $collectionUri
+    $xmlCollection = Get-BGGCollection -Uri $collectionUri
 
-    # Slår upp spel med numplays större än cutoff
-    $boardgameItems = $xmlCollection | Select-Xml -XPath "//item[numplays>=$cutoff]"
+    if ( $xmlCollection -eq $null ) {
+        # Failed to get collection
+        return 'Failed to get collection from boardgamegeek.com'
+    } else {
 
-    $playsList = @{}
+        # Slår upp spel med numplays större än cutoff
+        $boardgameItems = $xmlCollection | Select-Xml -XPath "//item[numplays>=$cutoff]"
 
-    foreach ( $item in $boardgameItems ) {
-        $curID = $item.Node.objectid
-        $numPlays = $item.Node.numplays
-        try {
-            $playsList.Add($curID,[int32]$numPlays)
-        } catch [ArgumentException] {
-            # Dublett
-        } catch {
-            Write-Host "Unexpected Error"
+        $playsList = @{}
+
+        foreach ( $item in $boardgameItems ) {
+            $curID = $item.Node.objectid
+            $numPlays = $item.Node.numplays
+            try {
+                $playsList.Add($curID,[int32]$numPlays)
+            } catch [ArgumentException] {
+                # Dublett
+            } catch {
+                Write-Host "Unexpected Error"
+            }
         }
+
+        $curRow = 1
+        $HIndexList = "[BGCOLOR=#66FF00]"
+        $aboveTarget = $true
+        $notStartedBelowTarget = $true
+
+        foreach ( $item in $playsList.GetEnumerator() | Sort-Object { $_.Value } -Descending ) {
+            $curID = $item.Key
+            $curPlays = $item.Value
+
+            if ( ( $curPlays -lt $target ) -and ( $aboveTarget ) ) {
+                $HIndexList = $HIndexList + "[/BGCOLOR][BGCOLOR=#FFCC00]"
+                $aboveTarget = $false
+            } elseif ( $curRow -eq $target ) {
+                $HIndexList = $HIndexList + "[/BGCOLOR]"
+            } elseif ( ( $curRow -gt $target ) -and ( $notStartedBelowTarget ) ) {
+                $HIndexList = $HIndexList + "[BGCOLOR=#FFCC00]"
+                $notStartedBelowTarget = $false
+            }
+
+            if ( $curRow -eq $target ) { $HIndexList = $HIndexList + '[BGCOLOR=#33FFFF][b][i]' }
+            $HIndexList = $HIndexList + "$curRow. [thing=$curID][/thing] $curPlays"
+            if ( $curRow -eq $target ) { $HIndexList = $HIndexList + ' Primary goal[/b][/i][/BGCOLOR]' }
+            $HIndexList = $HIndexList + "`n"
+
+
+            $curRow++
+            if ( $curPlays -le $cutoff ) {
+                $HIndexList = $HIndexList + "[/BGCOLOR]"
+                BREAK 
+            }
+        }
+
+        return $HIndexList
     }
-
-    $curRow = 1
-    $HIndexList = "[BGCOLOR=#66FF00]"
-    $aboveTarget = $true
-    $notStartedBelowTarget = $true
-
-    foreach ( $item in $playsList.GetEnumerator() | Sort-Object { $_.Value } -Descending ) {
-        $curID = $item.Key
-        $curPlays = $item.Value
-
-        if ( ( $curPlays -lt $target ) -and ( $aboveTarget ) ) {
-            $HIndexList = $HIndexList + "[/BGCOLOR][BGCOLOR=#FFCC00]"
-            $aboveTarget = $false
-        } elseif ( $curRow -eq $target ) {
-            $HIndexList = $HIndexList + "[/BGCOLOR]"
-        } elseif ( ( $curRow -gt $target ) -and ( $notStartedBelowTarget ) ) {
-            $HIndexList = $HIndexList + "[BGCOLOR=#FFCC00]"
-            $notStartedBelowTarget = $false
-        }
-
-        if ( $curRow -eq $target ) { $HIndexList = $HIndexList + '[BGCOLOR=#33FFFF][b][i]' }
-        $HIndexList = $HIndexList + "$curRow. [thing=$curID][/thing] $curPlays"
-        if ( $curRow -eq $target ) { $HIndexList = $HIndexList + ' Primary goal[/b][/i][/BGCOLOR]' }
-        $HIndexList = $HIndexList + "`n"
-
-
-        $curRow++
-        if ( $curPlays -le $cutoff ) {
-            $HIndexList = $HIndexList + "[/BGCOLOR]"
-            BREAK 
-        }
-    }
-
-    return $HIndexList
 
 }
 
