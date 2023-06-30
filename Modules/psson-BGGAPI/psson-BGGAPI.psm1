@@ -263,7 +263,7 @@ function Get-BGGDiversityChallengeList {
     }
 
     # Create BGG code
-
+    
     $sortedItems = $firstPlays.GetEnumerator() | Sort-Object -Property Value
 
     #Write-Output "Total games played: $($firstPlays.Count)"
@@ -289,7 +289,6 @@ function Get-BGGHIndexList {
         [int32]$cutoff
     )
     $collectionUri = "https://boardgamegeek.com/xmlapi2/collection?username=$bggUser&subtype=boardgame&excludesubtype=boardgameexpansion&excludesubtype=boardgameaccessory&played=1"
-    #[xml]$xmlCollection = Invoke-WebRequest -Uri $collectionUri
     $xmlCollection = Get-BGGCollection -Uri $collectionUri
 
     if ( $xmlCollection -eq $null ) {
