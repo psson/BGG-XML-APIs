@@ -162,7 +162,6 @@ function Get-BGGDiversityChallengeList {
 
     # TODO: BGGConfig Examine provided username and set to default username if missing
     # TODO: Examine provided start and end dates and set to year start and year end if missing
-    # TODO: Add link to first play
 
     # Construct API URL for games played by user in given year
     $url = "https://www.boardgamegeek.com/xmlapi2/plays?username=$BGGUser&mindate=$StartDate&maxdate=$EndDate"
@@ -670,26 +669,36 @@ function Get-BGGUnplayedGameIDs {
 
         # Get games from user collection
         $gamesUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$own"
-        # TODO: Use Get-BGGCollection instead
-        [xml]$games = Invoke-WebRequest -Uri $gamesUri
+        
+        $games = Get-BGGCollection -Uri $gamesUri
 
-        # Get all gameIDs to a dictionary
+        if ( $games -eq $null ) {
+            Write-Error "Failed to get all data from BGG"
+            $unplayedIDs = $null
+        } else {
+            <# Action when all if and elseif conditions are false #>
+            
+        
+            # Get all gameIDs to a dictionary
+            $allIDs = $games.items.item.objectid
 
-        $allIDs = $games.items.item.objectid
-
-        foreach ( $id in $allIDs ) {
-            if ( $playedIDs.ContainsKey( $id ) ) {
-                #ID is played, ignore
-            } else {
-                
-                try {
-                    $unplayedIDs.Add( $id, 'unplayed' )
+            foreach ( $id in $allIDs ) {
+                if ( $playedIDs.ContainsKey( $id ) ) {
+                    #ID is played, ignore
+                } else {
+                    
+                    try {
+                        $unplayedIDs.Add( $id, 'unplayed' )
+                    }
+                    catch [System.Management.Automation.MethodInvocationException] {
+                        # Exception adding duplicate, ignore
+                    }
+                    
                 }
-                catch [System.Management.Automation.MethodInvocationException] {
-                    # Exception adding duplicate, ignore
-                }
-                
             }
+
+            Write-Verbose "Found $($unplayedIDs.Count)"
+
         }
         
     }
