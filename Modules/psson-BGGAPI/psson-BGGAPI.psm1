@@ -138,13 +138,13 @@ function Get-BGGChallengePlaysForGame {
     if ( $reqPlayer -eq '' ) {
         # No required player
         Write-Verbose "No required player"
-        $xmlPlays | Select-Xml -XPath "//*[*/@objecttype='thing']" | Sort-Object -Property date,id | Select-Object -First 10 -ExpandProperty "node" | Select-Object -ExpandProperty id |  ForEach-Object { $playStar = "[geekurl=/play/details/$_]:star:[/geekurl]" ; $row = $row + $playStar ; $numPlays = $numPlays + 1 }
+        $xmlPlays | Select-Xml -XPath "//*[*/@objecttype='thing']" | Sort-Object -Property date,id | Select-Object -First 10 -ExpandProperty "node" | Select-Object -ExpandProperty id |  ForEach-Object { $playStar = "[geekurl=/play/details/$_][microbadge=54118][/geekurl]" ; $row = $row + $playStar ; $numPlays = $numPlays + 1 }
     } else {
         # Required player present
         Write-Verbose "Required player $reqPlayer"
-        $xmlPlays | Select-Xml -XPath "//*[*/*/@name='$reqPlayer']" | Sort-Object -Property date,id | Select-Object -First 10 -ExpandProperty "node" | Select-Object -ExpandProperty id |  ForEach-Object { $playStar = "[geekurl=/play/details/$_]:star:[/geekurl]" ; $row = $row + $playStar ; $numPlays = $numPlays + 1 }
+        $xmlPlays | Select-Xml -XPath "//*[*/*/@name='$reqPlayer']" | Sort-Object -Property date,id | Select-Object -First 10 -ExpandProperty "node" | Select-Object -ExpandProperty id |  ForEach-Object { $playStar = "[geekurl=/play/details/$_][microbadge=54118][/geekurl]" ; $row = $row + $playStar ; $numPlays = $numPlays + 1 }
     }
-    $fillerStars = for( $i = $numPlays+1 ; $i -le 10; $i = $i + 1 ) { $row = $row + ':nostar:' }
+    $fillerStars = for( $i = $numPlays+1 ; $i -le 10; $i = $i + 1 ) { $row = $row + '[microbadge=54116]' }
     $gameLink = "[thing=$gameID][/thing]"
     $row = $row + $fillerStars + " $gameLink`n"
     
@@ -652,7 +652,7 @@ function Get-BGGUnplayedGameIDs {
 
         Write-Verbose "No dates provided"
 
-        # At least one of the dates are empty, get all owned, unplayed games in collection
+        # At least one of the dates are empty, get all owned, unplayed games in collection excluding wishlist items
         $unplayedUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$own&played=0&wishlist=0"
         [xml]$unplayedGames = Invoke-WebRequest -Uri $unplayedUri
 
