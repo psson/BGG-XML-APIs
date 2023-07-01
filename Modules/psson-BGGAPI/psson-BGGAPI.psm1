@@ -217,18 +217,22 @@ function Get-BGGDiversityChallengeList {
             #<#
             if ( $bgPlay ) {
                 $itemID = $play.item.objectid
+                $curPlayId = $play.id
                 $curDate = $play.date
                 # ID not in dictionary, add with date
                 if ( -not $firstPlays.Contains($itemID) ) {
                     Write-Debug "Item $itemID not in dictionary. Adding it..."
-                    $firstPlays[$itemID]=$curDate
+                    $firstPlays[$itemID]=@{playid=$curPlayId;playdate=$curDate}
                 } else {
                     # ID in dictionary
+
+                    Write-Debug "Current date: $curDate"
+                    Write-Debug "Existing date: $firstPlays[$itemid].playdate"
                     
-                    if ( $curDate -lt $firstPlays[$itemid] ) {
+                    if ( $curDate -lt $firstPlays[$itemid].playdate ) {
                         # If current date newer than date in dictionary, replace date
                         Write-Debug "Current date, $curDate is less the registered date for $itemID. Replacing..."
-                        $firstPlays[$itemID] = $curDate
+                        $firstPlays[$itemID]=@{playid=$curPlayId;playdate=$curDate}
                     }
                 }
                     
@@ -264,14 +268,12 @@ function Get-BGGDiversityChallengeList {
 
     # Create BGG code
     
-    $sortedItems = $firstPlays.GetEnumerator() | Sort-Object -Property Value
-
-    #Write-Output "Total games played: $($firstPlays.Count)"
+    $sortedItems = $firstPlays.GetEnumerator() | Sort-Object { $_.Value.playdate }
 
     $output = "In for 100 different games`n`nCurrently at $($firstPlays.Count)`n`n"
 
     foreach ( $item in $sortedItems ) {
-        $curLine = "[thing=$($item.key)][/thing] - $($item.Value)`n"
+        $curLine = "[thing=$($item.key)][/thing] - [geekurl=/play/details/$($item.Value.playid)]$($item.Value.playdate)[/geekurl]`n"
         $output += $curLine
     }
 
@@ -668,6 +670,7 @@ function Get-BGGUnplayedGameIDs {
 
         # Get games from user collection
         $gamesUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$own"
+        # TODO: Use Get-BGGCollection instead
         [xml]$games = Invoke-WebRequest -Uri $gamesUri
 
         # Get all gameIDs to a dictionary
