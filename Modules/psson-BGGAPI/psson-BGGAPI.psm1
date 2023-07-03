@@ -292,7 +292,7 @@ function Get-BGGHIndexList {
     $collectionUri = "https://boardgamegeek.com/xmlapi2/collection?username=$bggUser&subtype=boardgame&excludesubtype=boardgameexpansion&excludesubtype=boardgameaccessory&played=1"
     $xmlCollection = Get-BGGCollection -Uri $collectionUri
 
-    if ( $xmlCollection -eq $null ) {
+    if ( $null -eq $xmlCollection ) {
         # Failed to get collection
         return 'Failed to get collection from boardgamegeek.com'
     } else {
@@ -631,8 +631,10 @@ function Get-BGGUnplayedGameIDs {
         [string][Parameter(Mandatory)]$BGGUser,
         [switch][Parameter()]$Owned,
         [string][Parameter()]$StartDate,
-        [string][Parameter()]$EndDate
+        [string][Parameter()]$EndDate,
+        [switch][Parameter()]$ExcludeExpansions
     )
+    # TODO: Handle switch parameter for exclusion of expansions
 
     <#
     Fetch IDs for unplayed games for user collection
@@ -672,12 +674,10 @@ function Get-BGGUnplayedGameIDs {
         
         $games = Get-BGGCollection -Uri $gamesUri
 
-        if ( $games -eq $null ) {
+        if ( $null -eq $games ) {
             Write-Error "Failed to get all data from BGG"
             $unplayedIDs = $null
         } else {
-            <# Action when all if and elseif conditions are false #>
-            
         
             # Get all gameIDs to a dictionary
             $allIDs = $games.items.item.objectid
