@@ -648,6 +648,12 @@ function Get-BGGUnplayedGameIDs {
         $own = 0
     }
 
+    if ( $ExcludeExpansions ) {
+        $ExclExp='&excludesubtype=boardgameexpansion'
+    } else {
+        $ExclExp=''
+    }
+
     $unplayedIDs = @{}
 
     if ( ( $StartDate -eq '' ) -or ( $EndDate -eq '' ) ) {
@@ -655,8 +661,9 @@ function Get-BGGUnplayedGameIDs {
         Write-Verbose "No dates provided"
 
         # At least one of the dates are empty, get all owned, unplayed games in collection excluding wishlist items
-        $unplayedUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$own&played=0&wishlist=0"
-        [xml]$unplayedGames = Invoke-WebRequest -Uri $unplayedUri
+        $unplayedUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$own&played=0&wishlist=0$ExclExp"
+        #[xml]$unplayedGames = Invoke-WebRequest -Uri $unplayedUri
+        $unplayedGames = Get-BGGCollection -Uri $unplayedUri
 
         # Get all gameIDs to a dictionary
 
@@ -670,7 +677,7 @@ function Get-BGGUnplayedGameIDs {
         [hashtable]$playedIDs = Get-BGGUniqueIDsFromPlays -BGGuser $BGGUser -StartDate $StartDate -EndDate $EndDate
 
         # Get games from user collection
-        $gamesUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$own"
+        $gamesUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$own$ExclExp"
         
         $games = Get-BGGCollection -Uri $gamesUri
 
@@ -727,6 +734,7 @@ Export module functions
 #>
 
 Export-ModuleMember Get-BGGChallengePlaysForEntry
+Export-ModuleMember Get-BGGThing
 Export-ModuleMember Get-BGGGameName
 Export-ModuleMember Get-BGGDiversityChallengeList
 Export-ModuleMember Get-BGGHIndexList
