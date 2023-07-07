@@ -134,7 +134,7 @@ function Get-BGGChallengePlaysForGame {
     [xml]$xmlPlays = Invoke-WebRequest -Uri $playsUri
     $numPlays = 0
     $paddedGameNumber = $([string]$gameNumber).PadLeft(2,'0')
-    $row = "$paddedGameNumber. "
+    $row = "[c]$paddedGameNumber. [/c]"
     if ( $reqPlayer -eq '' ) {
         # No required player
         Write-Verbose "No required player"
