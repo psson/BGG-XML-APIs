@@ -634,7 +634,6 @@ function Get-BGGUnplayedGameIDs {
         [string][Parameter()]$EndDate,
         [switch][Parameter()]$ExcludeExpansions
     )
-    # TODO: Handle switch parameter for exclusion of expansions
 
     <#
     Fetch IDs for unplayed games for user collection
@@ -662,7 +661,6 @@ function Get-BGGUnplayedGameIDs {
 
         # At least one of the dates are empty, get all owned, unplayed games in collection excluding wishlist items
         $unplayedUri = "https://boardgamegeek.com/xmlapi2/collection?username=$BGGUser&own=$own&played=0&wishlist=0$ExclExp"
-        #[xml]$unplayedGames = Invoke-WebRequest -Uri $unplayedUri
         $unplayedGames = Get-BGGCollection -Uri $unplayedUri
 
         # Get all gameIDs to a dictionary
