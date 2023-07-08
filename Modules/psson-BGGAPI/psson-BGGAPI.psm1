@@ -91,10 +91,10 @@ function Get-BGGGameName {
 function Get-BGGChallengePlaysForEntry {
     [cmdletbinding()]
     param (
-        [string]$bggUser,
-        [string[]]$gameIDs,
-        [string]$year,
-        [string]$reqPlayer,
+        [string]$BGGUser,
+        [string[]]$GameIDs,
+        [string]$Year,
+        [string]$ReqPlayer,
         [switch]$ListGames
     )
 
@@ -104,7 +104,7 @@ function Get-BGGChallengePlaysForEntry {
     $curGameNumber = 1
 
     foreach ( $gameID in $gameIDs ) {
-            if ( $listGames ) {
+            if ( $ListGames ) {
                 $curName = Get-BGGGameName -gameID $gameID
                 Write-Host "Fetching plays for $curName"
             }
@@ -156,6 +156,7 @@ function Get-BGGDiversityChallengeList {
     [cmdletbinding()]
     param (
         [Parameter()][string]$BGGUser,
+        [Parameter()][string]$Goal = 100,
         [Parameter()][string]$StartDate,
         [Parameter()][string]$EndDate
     )
@@ -269,7 +270,14 @@ function Get-BGGDiversityChallengeList {
     
     $sortedItems = $firstPlays.GetEnumerator() | Sort-Object { $_.Value.playdate }
 
-    $output = "In for 100 different games`n`nCurrently at $($firstPlays.Count)`n`n"
+    $output = "In for $Goal different games"
+    if ( $firstPlays.Count -ge $Goal ) {
+        $output += "`n`n[b]CHALLENGE COMPLETED[/b]`n`nCurrently at $($firstPlays.Count)`n`n"
+    } else {
+        $output += "`n`nCurrently at $($firstPlays.Count)`n`n"
+    }
+    
+    
 
     foreach ( $item in $sortedItems ) {
         $curLine = "[thing=$($item.key)][/thing] - [geekurl=/play/details/$($item.Value.playid)]$($item.Value.playdate)[/geekurl]`n"
@@ -285,9 +293,9 @@ function Get-BGGDiversityChallengeList {
 function Get-BGGHIndexList {
     [cmdletbinding()]
     param (
-        [string]$bggUser,
-        [int32]$target,
-        [int32]$cutoff
+        [string]$BGGUser,
+        [int32]$Target,
+        [int32]$Cutoff
     )
     $collectionUri = "https://boardgamegeek.com/xmlapi2/collection?username=$bggUser&subtype=boardgame&excludesubtype=boardgameexpansion&excludesubtype=boardgameaccessory&played=1"
     $xmlCollection = Get-BGGCollection -Uri $collectionUri
