@@ -95,7 +95,9 @@ function Get-BGGChallengePlaysForEntry {
         [string[]]$GameIDs,
         [string]$Year,
         [string]$ReqPlayer,
-        [switch]$ListGames
+        [switch]$ListGames,
+        [string]$UnplayedWidget = ':nostar:',
+        [string]$PlayedWidget = ':star:'
     )
 
     # TODO: BGGConfig Examine provided username and set default username if missing
@@ -111,7 +113,7 @@ function Get-BGGChallengePlaysForEntry {
 	        if ( $curGameNumber -eq 11 ) {
 		        $entry = $entry + "`nAlternate game:`n"
 	        }
-	        $newRow = Get-BGGChallengePlaysForGame -bggUser $bggUser -gameID $gameID -year $year -gameNumber $curGameNumber -reqPlayer $reqPlayer -Verbose:$VerbosePreference
+	        $newRow = Get-BGGChallengePlaysForGame -bggUser $bggUser -gameID $gameID -year $year -gameNumber $curGameNumber -reqPlayer $reqPlayer -UnplayedWidget $UnplayedWidget -PlayedWidget $PlayedWidget -Verbose:$VerbosePreference
 	        $entry = $entry + $newRow
 	        $curGameNumber = $curGameNumber + 1
     }
@@ -125,7 +127,9 @@ function Get-BGGChallengePlaysForGame {
             [string]$gameID,
             [string]$year,
             [int]$gameNumber,
-            [string]$reqPlayer
+            [string]$reqPlayer,
+            [string]$UnplayedWidget = ':nostar:',
+            [string]$PlayedWidget = ':star:'
     )
 
     # TODO: BGGConfig Examine provided username and set default username if missing
@@ -138,13 +142,13 @@ function Get-BGGChallengePlaysForGame {
     if ( $reqPlayer -eq '' ) {
         # No required player
         Write-Verbose "No required player"
-        $xmlPlays | Select-Xml -XPath "//*[*/@objecttype='thing']" | Sort-Object -Property date,id | Select-Object -First 10 -ExpandProperty "node" | Select-Object -ExpandProperty id |  ForEach-Object { $playStar = "[geekurl=/play/details/$_][microbadge=54118][/geekurl]" ; $row = $row + $playStar ; $numPlays = $numPlays + 1 }
+        $xmlPlays | Select-Xml -XPath "//*[*/@objecttype='thing']" | Sort-Object -Property date,id | Select-Object -First 10 -ExpandProperty "node" | Select-Object -ExpandProperty id |  ForEach-Object { $playStar = "[geekurl=/play/details/$_]$PlayedWidget[/geekurl]" ; $row = $row + $playStar ; $numPlays = $numPlays + 1 }
     } else {
         # Required player present
         Write-Verbose "Required player $reqPlayer"
-        $xmlPlays | Select-Xml -XPath "//*[*/*/@name='$reqPlayer']" | Sort-Object -Property date,id | Select-Object -First 10 -ExpandProperty "node" | Select-Object -ExpandProperty id |  ForEach-Object { $playStar = "[geekurl=/play/details/$_][microbadge=54118][/geekurl]" ; $row = $row + $playStar ; $numPlays = $numPlays + 1 }
+        $xmlPlays | Select-Xml -XPath "//*[*/*/@name='$reqPlayer']" | Sort-Object -Property date,id | Select-Object -First 10 -ExpandProperty "node" | Select-Object -ExpandProperty id |  ForEach-Object { $playStar = "[geekurl=/play/details/$_]$PlayedWidget[/geekurl]" ; $row = $row + $playStar ; $numPlays = $numPlays + 1 }
     }
-    $fillerStars = for( $i = $numPlays+1 ; $i -le 10; $i = $i + 1 ) { $row = $row + '[microbadge=54116]' }
+    $fillerStars = for( $i = $numPlays+1 ; $i -le 10; $i = $i + 1 ) { $row = $row + "$UnplayedWidget" }
     $gameLink = "[thing=$gameID][/thing]"
     $row = $row + $fillerStars + " $gameLink`n"
     
