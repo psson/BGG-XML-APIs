@@ -270,10 +270,6 @@ function Get-BGGDiversityChallengeList {
     
     $sortedItems = $firstPlays.GetEnumerator() | Sort-Object { $_.Value.playdate }
 
-    <#
-    $output = "In for $Goal different games`n`nCurrently at $($firstPlays.Count)`n`n"
-    #>
-
     $output = "In for $Goal different games"
     if ( $firstPlays.Count -ge $Goal ) {
         $output += "`n`n[b]CHALLENGE COMPLETED[/b]`n`nCurrently at $($firstPlays.Count)`n`n"
