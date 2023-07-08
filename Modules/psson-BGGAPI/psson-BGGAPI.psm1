@@ -100,8 +100,6 @@ function Get-BGGChallengePlaysForEntry {
         [string]$PlayedWidget = ':star:'
     )
 
-    # TODO: BGGConfig Examine provided username and set default username if missing
-
     $entry = ""
     $curGameNumber = 1
 
@@ -131,8 +129,6 @@ function Get-BGGChallengePlaysForGame {
             [string]$UnplayedWidget = ':nostar:',
             [string]$PlayedWidget = ':star:'
     )
-
-    # TODO: BGGConfig Examine provided username and set default username if missing
 
     $playsUri = "https://boardgamegeek.com/xmlapi2/plays?username=$bggUser&id=$gameID&mindate=$year-01-01&maxdate=$year-12-31"
     [xml]$xmlPlays = Invoke-WebRequest -Uri $playsUri
@@ -165,8 +161,7 @@ function Get-BGGDiversityChallengeList {
         [Parameter()][string]$EndDate
     )
 
-    # TODO: BGGConfig Examine provided username and set to default username if missing
-    # TODO: Examine provided start and end dates and set to year start and year end if missing
+    # TODO: Replace StartDate and EndDate parameters with a single year parameter to match 10x10 function
 
     # Construct API URL for games played by user in given year
     $url = "https://www.boardgamegeek.com/xmlapi2/plays?username=$BGGUser&mindate=$StartDate&maxdate=$EndDate"
