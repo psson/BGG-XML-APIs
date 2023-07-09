@@ -157,14 +157,17 @@ function Get-BGGDiversityChallengeList {
     param (
         [Parameter()][string]$BGGUser,
         [Parameter()][string]$Goal = 100,
-        [Parameter()][string]$StartDate,
-        [Parameter()][string]$EndDate
+        [Parameter()][string]$Year
     )
 
-    # TODO: Replace StartDate and EndDate parameters with a single year parameter to match 10x10 function
-
     # Construct API URL for games played by user in given year
+
+    # For some reason these dates couldn't be created inline in the url string the same way it's done for the 10x10 challenge
+    $StartDate = "$Year-01-01"
+    $EndDate = "$Year-12-31"
+
     $url = "https://www.boardgamegeek.com/xmlapi2/plays?username=$BGGUser&mindate=$StartDate&maxdate=$EndDate"
+    Write-Debug "Diversity challenge URL: $url"
 
     # Query the API and parse the XML response
     $response = Invoke-RestMethod $url
