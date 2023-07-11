@@ -23,4 +23,4 @@ if ( $ChallengeMode -eq 'Normal') {
 }
 
 # Hämta rad-datat till clipboard
-Get-BGGChallengePlaysForEntry -bggUser $bggUser -gameIDs $challengeGameIDs -year $year -reqPlayer $reqPlayer -ListGames
+Get-BGG10x10Entry -bggUser $bggUser -gameIDs $challengeGameIDs -year $year -reqPlayer $reqPlayer -ListGames
