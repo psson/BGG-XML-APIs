@@ -88,7 +88,7 @@ function Get-BGGGameName {
     
 }
 
-function Get-BGGChallengePlaysForEntry {
+function Get-BGG10x10Entry {
     [cmdletbinding()]
     param (
         [string]$BGGUser,
@@ -111,7 +111,7 @@ function Get-BGGChallengePlaysForEntry {
 	        if ( $curGameNumber -eq 11 ) {
 		        $entry = $entry + "`nAlternate game:`n"
 	        }
-	        $newRow = Get-BGGChallengePlaysForGame -bggUser $bggUser -gameID $gameID -year $year -gameNumber $curGameNumber -reqPlayer $reqPlayer -UnplayedWidget $UnplayedWidget -PlayedWidget $PlayedWidget -Verbose:$VerbosePreference
+	        $newRow = Get-BGG10x10RowForGame -bggUser $bggUser -gameID $gameID -year $year -gameNumber $curGameNumber -reqPlayer $reqPlayer -UnplayedWidget $UnplayedWidget -PlayedWidget $PlayedWidget -Verbose:$VerbosePreference
 	        $entry = $entry + $newRow
 	        $curGameNumber = $curGameNumber + 1
     }
@@ -119,7 +119,7 @@ function Get-BGGChallengePlaysForEntry {
     return $entry
 }
 
-function Get-BGGChallengePlaysForGame {
+function Get-BGG10x10RowForGame {
     [cmdletbinding()]
     param ( [string]$bggUser,
             [string]$gameID,
@@ -741,7 +741,7 @@ Function Get-SaveFileName {
 Export module functions
 #>
 
-Export-ModuleMember Get-BGGChallengePlaysForEntry
+Export-ModuleMember Get-BGG10x10Entry
 Export-ModuleMember Get-BGGThing
 Export-ModuleMember Get-BGGGameName
 Export-ModuleMember Get-BGGDiversityChallengeList
