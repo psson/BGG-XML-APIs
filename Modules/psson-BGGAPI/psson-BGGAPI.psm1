@@ -272,19 +272,30 @@ function Get-BGGDiversityChallengeList {
     
     $sortedItems = $firstPlays.GetEnumerator() | Sort-Object { $_.Value.playdate }
 
-    $output = "In for $Goal different games"
-    if ( $firstPlays.Count -ge $Goal ) {
-        $output += "`n`n[b]CHALLENGE COMPLETED[/b]`n`nCurrently at $($firstPlays.Count)`n`n"
-    } else {
-        $output += "`n`nCurrently at $($firstPlays.Count)`n`n"
-    }
+    $counter = 0
+    $finishedDate
+
+    $output = ""
     
     
 
     foreach ( $item in $sortedItems ) {
-        $curLine = "[thing=$($item.key)][/thing] - [geekurl=/play/details/$($item.Value.playid)]$($item.Value.playdate)[/geekurl]`n"
+        $counter += 1
+        $curLine = "$counter. [thing=$($item.key)][/thing] - [geekurl=/play/details/$($item.Value.playid)]$($item.Value.playdate)[/geekurl]`n"
         $output += $curLine
+        if ( $counter -eq $Goal ) {
+            $finishedDate = $($item.Value.playdate)
+        }
     }
+
+    $header = "In for $Goal different games"
+    if ( $firstPlays.Count -ge $Goal ) {
+        $header += "`n`n[b]CHALLENGE COMPLETED ON $finishedDate[/b]`n`nCurrently at $($firstPlays.Count)`n`n"
+    } else {
+        $header += "`n`nCurrently at $($firstPlays.Count)`n`n"
+    }
+
+    $output = $header + $output
 
     Write-Verbose $output
 
