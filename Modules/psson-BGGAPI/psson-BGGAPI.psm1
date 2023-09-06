@@ -303,6 +303,9 @@ function Get-BGGDiversityChallengeList {
     
 }
 
+<#
+Gets BGG forum code for the H-Index challenge
+#>
 function Get-BGGHIndexList {
     [cmdletbinding()]
     param (
@@ -368,6 +371,93 @@ function Get-BGGHIndexList {
         }
 
         return $HIndexList
+    }
+
+}
+
+<#
+Calculates the Friendless metric for a collection
+Pseudo algorithm
+Get all games and sort into list ordered by number of plays
+Count number of games with 10+ plays
+Starting at the low end of plays, remove one game for each game played 10+ times.
+If the number is more than 0, this is your Friendless metric
+If the number of plays for that game is 0, count remaining number of games with 0 plays and multiply by -1 to find Friendless metric
+#>
+function Get-BGGFriendlessMetric {
+    [cmdletbinding()]
+    param (
+        [string]$BGGUser
+    )
+    $collectionUri = "https://boardgamegeek.com/xmlapi2/collection?username=$bggUser&own=1&subtype=boardgame&excludesubtype=boardgameexpansion&excludesubtype=boardgameaccessory"
+    $xmlCollection = Get-BGGCollection -Uri $collectionUri
+
+    if ( $null -eq $xmlCollection ) {
+        # Failed to get collection
+        return 'Failed to get collection from boardgamegeek.com'
+    } else {
+
+        Write-Verbose 'Got collection'
+
+        # Slår upp spel med 10 eller fler plays
+        #$boardgameItems = $xmlCollection | Select-Xml -XPath "//item[numplays>=$cutoff]"
+        $allGames =  $xmlCollection | Select-Xml -XPath "//item"
+        $gamesAboveNinePlays = $xmlCollection | Select-Xml -XPath "//item[numplays>=10]"
+        $numAboveNine = $gamesAboveNinePlays.Count
+        Write-Verbose "Number of games at or above 10 plays: $numAboveNine"
+
+        #$playsList = @{}
+        $allPlays = @{}
+
+        foreach ( $item in $allGames ) {
+            $curID = $item.Node.objectid
+            Write-Debug "Current ID: $curID"
+            $numPlays = $item.Node.numplays
+            Write-Debug "Current number of plays: $numPlays"
+            try {
+                $allPlays.Add($curID,[int32]$numPlays)
+            } catch [ArgumentException] {
+                # Dublett
+            } catch {
+                Write-Host "Unexpected Error"
+            }
+        }
+
+        $counter = $numAboveNine
+        $curMetric = 0
+
+        foreach ( $item in $allPlays.GetEnumerator() | Sort-Object { $_.Value } ) {
+            $curPlays = $item.Value
+            #Write-Debug "Counter: $counter"
+            #Write-Debug "Current Metric value: $curMetric"
+            #Write-Debug "Current number of plays: $curPlays"
+            # Kontrollera om räknaren för spel med tio eller fler plays fortfarande är större än noll
+            if ( $counter -gt 0 ) {
+                Write-Debug "Counter still above 0: $counter"
+                $counter--
+            } else {
+                Write-Debug "Counter has reached 0"
+                Write-Debug "Current Metric value: $curMetric"
+                Write-Debug "Current number of plays: $curPlays"
+                # Räknaren har nått noll
+                if ( ( $curPlays -gt 0 ) -and ( $curMetric -eq 0 ) ) {
+                    # Aktuellt antal plays är större än noll och vi har inte börjat räkna nre curMetric till negativa tal
+                    $curMetric = $curPlays
+                    Write-Debug "Final metric above 0: $curMetric"
+                    BREAK
+                } elseif ( $curPlays -eq 0 ) {
+                    # Aktuellt antal plays är fortfarande noll, fortsätt räkna ner curMetric
+                    Write-Debug "Final metric 0 or below: $curMetric"
+                    $curMetric--
+                } else {
+                    # Aktuellt antal plays är nu över noll, avsluta
+                    BREAK
+                }
+            }
+            
+        }
+
+        Write-Output $curMetric
     }
 
 }
@@ -757,6 +847,7 @@ Export-ModuleMember Get-BGGThing
 Export-ModuleMember Get-BGGGameName
 Export-ModuleMember Get-BGGDiversityChallengeList
 Export-ModuleMember Get-BGGHIndexList
+Export-ModuleMember Get-BGGFriendlessMetric
 Export-ModuleMember Get-BGGCategoriesForGamesToFile
 Export-ModuleMember Get-BGGCategoriesForGame
 Export-ModuleMember Get-BGGNumCategoriesForGames
