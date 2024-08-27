@@ -841,6 +841,109 @@ Function Get-SaveFileName {
     $OpenFileDialog.filename
 }
 
+function Get-BGGChallengePostTextFromConfig {
+    [cmdletbinding()]
+    param (
+        [Parameter()][string]$BGGConfigFile
+    )
+
+    $bggconfig = Get-Content -Path $BGGConfigFile | convertfrom-json
+
+    $bggconfig.challenges.name | Out-GridView -PassThru | Get-BGGChallengePostText -BGGConfig $bggconfig -Debug:$DebugPreference
+
+}
+
+function Get-BGGChallengePostText {
+    [cmdletbinding()]
+    param (
+        [Parameter(ValueFromPipeline)][string]$ChallengeName,
+        [Parameter(Mandatory)]$BGGConfig # BGG Config read from config file
+    )
+
+    begin {
+        $bgguser = $BGGConfig.bgguser
+        $bggWidgets = $BGGConfig.widgets
+    }
+
+    process {
+        
+        $challengeConfig = $BGGConfig.challenges | Where-Object { $_.name -eq $ChallengeName }
+        Write-Debug "Challenge config is: $challengeConfig"
+        
+        Switch ( $challengeConfig.type ) {
+            "10x10" { Write-Verbose "Type is 10x10"; $splat = Get-BGG10x10SplatFromConfig -BGGuser $bgguser -ChallengeConfig $challengeConfig -WidgetConfig $bggWidgets; Get-BGG10x10Entry @splat }
+            "H-Index" { Write-Verbose "Type is H-Index"; $splat = Get-BGGHIndexSplatFromConfig -BGGuser $bgguser -ChallengeConfig $challengeConfig; Get-BGGHIndexList @splat }
+            "Diversity" { Write-Verbose "Type is Diversity"; $splat = Get-BGGDiversitySplatFromConfig -BGGuser $bgguser -ChallengeConfig $challengeConfig; Get-BGGDiversityChallengeList @splat }
+        }
+    }
+
+    end {}
+
+}
+
+function Get-BGG10x10SplatFromConfig {
+    [cmdletbinding()]
+    param (
+        [Parameter(Mandatory)][string]$BGGuser,
+        [Parameter(Mandatory)]$ChallengeConfig,
+        [Parameter()]$WidgetConfig
+    )
+
+    $splat = @{}
+    $splat['BGGUser']=$BGGuser
+    #$splat['PostText']=$ChallengeConfig.postText
+    $splat['Year']=$ChallengeConfig.year
+    $splat['GameIDs']=$ChallengeConfig.gameIDs
+
+    if ( $reqPlayer = $ChallengeConfig.PSObject.Properties['reqPlayer'] ) {
+        $splat['ReqPlayer']=$ChallengeConfig.reqPlayer
+    }
+
+    if ( $playedWidget = $WidgetConfig.PSObject.Properties['playedWidget'] ) {
+        $splat['PlayedWidget']=$WidgetConfig.playedWidget
+    }
+
+    if ( $unplayedWidget = $WidgetConfig.PSObject.Properties['unplayedWidget'] ) {
+        $splat['UnplayedWidget']=$WidgetConfig.unplayedWidget
+    }
+
+    return $splat
+}
+
+function Get-BGGHIndexSplatFromConfig {
+    [cmdletbinding()]
+    param (
+        [Parameter(Mandatory)][string]$BGGuser,
+        [Parameter(Mandatory)]$ChallengeConfig
+    )
+
+    $splat = @{}
+    $splat['BGGUser'] = $BGGuser
+    $splat['Target'] = $ChallengeConfig.target
+    $splat['Cutoff'] = $ChallengeConfig.cutoff
+
+    return $splat
+}
+
+function Get-BGGDiversitySplatFromConfig {
+    [cmdletbinding()]
+    param(
+        [Parameter(Mandatory)][string]$BGGuser,
+        [Parameter(Mandatory)]$ChallengeConfig
+    )
+
+    $splat = @{}
+    $splat['BGGUser'] = $BGGuser
+    $splat['Year'] = $ChallengeConfig.year
+
+    if ( $reqPlayer = $ChallengeConfig.PSObject.Properties['goal'] ) {
+        $splat['Goal'] = $ChallengeConfig.goal # Challenge has default value of 100. Value can be omitted in config
+    }
+
+    return $splat
+
+}
+
 <#
 Export module functions
 #>
@@ -858,3 +961,4 @@ Export-ModuleMember Get-BGGChallengePlaysForGame
 Export-ModuleMember Get-BGGUniqueIDsFromPlays
 Export-ModuleMember Get-BGGUniqueGamesAndExpansionsText
 Export-ModuleMember Get-BGGUnplayedGameIDs
+Export-ModuleMember Get-BGGChallengePostTextFromConfig
