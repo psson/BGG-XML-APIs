@@ -313,7 +313,8 @@ function Get-BGGHIndexList {
         [int32]$Target,
         [int32]$Cutoff
     )
-    $collectionUri = "https://boardgamegeek.com/xmlapi2/collection?username=$bggUser&subtype=boardgame&excludesubtype=boardgameexpansion&excludesubtype=boardgameaccessory&played=1"
+
+    $collectionUri = "https://boardgamegeek.com/xmlapi2/collection?username=$bggUser&subtype=boardgame&excludesubtype=boardgameexpansion&played=1"
     $xmlCollection = Get-BGGCollection -Uri $collectionUri
 
     if ( $null -eq $xmlCollection ) {
@@ -490,6 +491,7 @@ function Get-BGGCategoriesForGamesToFile {
 
     $now = Get-Date -Format 'yyyyMMdd_HHmm'
     $defaultFilename = "$BGGuser_Categories_$now.txt"
+    Write-Debug "Default filename: $defaultFilename"
     $filename = Get-SaveFileName -InitialDirectory $basePath -DefaultFileName $defaultFilename
 
     "Game categories for $BGGUser`nStart date`: $StartDate`nEnd date`: $EndDate`n`n" | Out-File -FilePath $filename -Encoding utf8
@@ -501,7 +503,8 @@ function Get-BGGCategoriesForGamesToFile {
         #<#
         if ( $idDict[$gameID] -eq 'bg' ) {
             # Boardgame ID, add to string
-            $thingIDs = $thingIDs + ",$gameID"
+            Write-Debug "Adding $gameID to string"
+            $thingIDs = $thingIDs + "$gameID,"
         } else {
             # Board game expansion, ignore
         }
