@@ -849,8 +849,8 @@ function Get-BGGChallengePostTextFromConfig {
 
     $bggconfig = Get-Content -Path $BGGConfigFile | convertfrom-json
 
-    $bggconfig.challenges.name | Out-GridView -PassThru | Get-BGGChallengePostText -BGGConfig $bggconfig -Debug
-    
+    $bggconfig.challenges.name | Out-GridView -PassThru | Get-BGGChallengePostText -BGGConfig $bggconfig -Debug:$DebugPreference
+
 }
 
 function Get-BGGChallengePostText {
@@ -961,3 +961,4 @@ Export-ModuleMember Get-BGGChallengePlaysForGame
 Export-ModuleMember Get-BGGUniqueIDsFromPlays
 Export-ModuleMember Get-BGGUniqueGamesAndExpansionsText
 Export-ModuleMember Get-BGGUnplayedGameIDs
+Export-ModuleMember Get-BGGChallengePostTextFromConfig
